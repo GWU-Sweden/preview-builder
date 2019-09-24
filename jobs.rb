@@ -7,18 +7,21 @@ require './builder.rb'
 if not ENV.has_key?('BUILD_OUTPUT_DIR')
 	raise 'Environment variable BUILD_OUTPUT_DIR is not set'
 end
+if not ENV.has_key?('DEPLOY_DIR')
+	raise 'Environment variable DEPLOY_DIR is not set'
+end
 
 Resque.logger.level = Logger::DEBUG
 
-def queue_build(base_repo_name, head_repo_url, head_sha, status_options)
+def queue_build(base_repo_name, head_repo_url, head_sha, status_options, pull_request_number)
 	puts "Queueing build for #{head_repo_url}:#{head_sha}"
-	Resque.enqueue(BuildSite, base_repo_name, head_repo_url, head_sha, status_options)
+	Resque.enqueue(BuildSite, base_repo_name, head_repo_url, head_sha, status_options, pull_request_number)
 end
 
 class BuildSite
 	@queue = :preview
 
-	def self.perform(base_repo_name, head_repo_url, head_sha, status_options)
+	def self.perform(base_repo_name, head_repo_url, head_sha, status_options, pull_request_number)
 		puts "#{head_repo_url}:#{head_sha} -- Starting build..."
 
 		Builder.build(head_repo_url, head_sha) do |error, build_output_tmp|
@@ -39,7 +42,7 @@ class BuildSite
 			client.create_status(base_repo_name, head_sha, 'success', status_options)
 
 			puts "#{head_repo_url}:#{head_sha} -- Build done"
-			Resque.enqueue(DeploySite, head_repo_url, head_sha, build_output_storage)
+			Resque.enqueue(DeploySite, head_repo_url, head_sha, build_output_storage, pull_request_number)
 		end
 	end
 end
@@ -47,10 +50,12 @@ end
 class DeploySite
 	@queue = :preview
 
-	def self.perform(head_repo_url, head_sha, source)
+	def self.perform(head_repo_url, head_sha, source, pull_request_number)
 		puts "#{head_repo_url}:#{head_sha} -- Deploying..."
-		puts "source to deploy is at #{source}"
-		sleep 4
-		puts "#{head_repo_url}:#{head_sha} -- Deployed to XYZ"
+		deploy_path = File.join(ENV['DEPLOY_DIR'], pull_request_number.to_s)
+		FileUtils.remove_dir(deploy_path, :force => true)
+		puts "Deploying #{source}\n\t-> #{deploy_path}"
+		FileUtils.mv(source, deploy_path)
+		puts "#{head_repo_url}:#{head_sha} -- Deployed to #{deploy_path}"
 	end
 end
