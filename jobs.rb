@@ -13,7 +13,7 @@ end
 
 Resque.logger.level = Logger::DEBUG
 
-def queue_build(base_repo_name, head_repo_url, head_sha, status_options, pull_request_number)
+def queue_build(base_repo_name, head_repo_name, head_repo_url, head_sha, status_options, pull_request_number)
 	puts "Queueing build for #{head_repo_url}:#{head_sha}"
 	Resque.enqueue(BuildSite, base_repo_name, head_repo_name, head_repo_url, head_sha, status_options, pull_request_number)
 end
