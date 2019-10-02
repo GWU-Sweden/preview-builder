@@ -17,6 +17,8 @@ post '/event_handler' do
 		puts @payload
 		if @payload["action"] == "opened" or @payload["action"] == "synchronize"
 			handle_pull_request_update(@payload["pull_request"])
+		elsif @payload["action"] == "closed"
+			handle_pull_request_removal(@payload["pull_request"])
 		end
 	end
 
@@ -37,5 +39,12 @@ helpers do
 		@client.create_status(base_repo_name, head_sha, 'pending', status_options)
 
 		queue_build(base_repo_name, head_repo_name, head_repo_url, head_sha, status_options, pull_request_number)
+	end
+
+	def handle_pull_request_removal(pull_request)
+		puts "Cleaning up PR ##{pull_request['number']} \"#{pull_request['title']}\""
+		pull_request_number = pull_request['number']
+
+		queue_cleanup(pull_request_number)
 	end
 end

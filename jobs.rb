@@ -18,6 +18,11 @@ def queue_build(base_repo_name, head_repo_name, head_repo_url, head_sha, status_
 	Resque.enqueue(BuildSite, base_repo_name, head_repo_name, head_repo_url, head_sha, status_options, pull_request_number)
 end
 
+def queue_cleanup(pull_request_number)
+	puts "Queueing removal for PR #{pull_request_number}"
+	Resque.enqueue(RemoveSite, pull_request_number)
+end
+
 class BuildSite
 	@queue = :preview
 
@@ -68,6 +73,22 @@ class DeploySite
 			puts e.backtrace.inspect
 			status_options = status_options.merge({ :description => error })
 			client.create_status(base_repo_name, head_sha, 'failure', status_options)
+		end
+	end
+end
+
+class RemoveSite
+	@queue = :preview
+
+	def self.perform(pull_request_number)
+		begin
+			deploy_path = File.join(ENV['DEPLOY_DIR'], pull_request_number.to_s)
+			FileUtils.remove_dir(deploy_path, :force => true)
+			puts "Removed #{deploy_path}"
+		rescue StandardError => e
+			puts "Deployment failed with error"
+			puts e.message
+			puts e.backtrace.inspect
 		end
 	end
 end
