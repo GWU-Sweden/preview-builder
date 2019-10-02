@@ -38,7 +38,7 @@ class BuildSite
 			puts "built to #{build_output_tmp}\n\t-> #{build_output_storage}"
 			FileUtils.copy_entry(build_output_tmp, build_output_storage)
 
-			status_options = status_options.merge({ :description => "Preview build complete", :target_url => "https://some-url.gwu-sweden.org/#{head_sha}" })
+			status_options = status_options.merge({ :description => "Preview build complete", :target_url => "http://#{pull_request_number}.preview.gwu-sweden.org/?#{head_sha}" })
 			client.create_status(base_repo_name, head_sha, 'success', status_options)
 
 			puts "#{head_repo_url}:#{head_sha} -- Build done"
